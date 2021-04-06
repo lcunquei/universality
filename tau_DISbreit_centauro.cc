@@ -126,7 +126,6 @@ int main(int argc, char* argv[]) {
 
    Int_t cislo = -1;                 //unique number for each file
    Int_t tune  = 6;                 //pythia tune to be used for DIS
-   
    Int_t had = 1;               //hadronisation on/off
    Int_t charged=0;                  //full or track-based jets
    Int_t unev=1;                     //underlying event on/off(ISR+MPI) 
@@ -197,7 +196,8 @@ int main(int argc, char* argv[]) {
   pythia.readString("PDF:lepton = off");
   pythia.readString("TimeShower:QEDshowerByL = off");
 
-
+   if(had==0){
+     pythia.readString("HadronLevel:Hadronize=off");}
    
     pythia.readString("11:mayDecay  = off"); //pi0s
    pythia.readString("310:mayDecay  = off"); //K0s
@@ -222,7 +222,7 @@ int main(int argc, char* argv[]) {
 
 
 
-  fastjet::contrib::CentauroPlugin * centauro_plugin = new fastjet::contrib::CentauroPlugin(1.0);
+  fastjet::contrib::CentauroPlugin * centauro_plugin = new fastjet::contrib::CentauroPlugin(jetParameterR);
   fastjet::JetDefinition jet_def(centauro_plugin);
   std::vector<fastjet::PseudoJet> fjInputs;
 
@@ -242,15 +242,21 @@ int main(int argc, char* argv[]) {
     TH1D *histoJetEta = new TH1D("histoJetEta","histoJetEta", 200,-10,10);
    histoJetEta->Sumw2();
 
+    const Int_t nVar = 4;
+   TTree *fTreeObservables = new TTree("variables", "variables");
+   TString *fShapesVarNames = new TString [nVar];
+   
+   float fShapesVar[4];
+   
+   fShapesVarNames[0] = "ptjet";
+   fShapesVarNames[1] = "tau";
+   fShapesVarNames[2] = "zcut";
+   fShapesVarNames[3] = "Q2";
+    for(Int_t ivar=0; ivar < nVar; ivar++){
+      fTreeObservables->Branch(fShapesVarNames[ivar].Data(), &fShapesVar[ivar], Form("%s/F", fShapesVarNames[ivar].Data()));}
 
 
-
-   TH1F* fHistXsection = new TH1F("fHistXsection", "fHistXsection", 1, 0, 1);
-   fHistXsection->GetYaxis()->SetTitle("xsection");
-
-   TH1F* fHistTrials = new TH1F("fHistTrials", "fHistTrials", 1, 0, 1);
-   fHistTrials->GetYaxis()->SetTitle("trials");
-
+ 
 
     double Wmax = sqrt(4.* eProton * eElectron);
     TH1D *Qhist=new TH1D("Q [GeV]", "q",100, 0., 50.);
@@ -267,16 +273,11 @@ int main(int argc, char* argv[]) {
   pTehist->Sumw2();
   pTrhist->Sumw2();
 
-  Int_t count=0;
-
+  
+  
    // Begin event loop. 
    for(int iEvent = 0; iEvent < nEvent; iEvent++){
       if(!pythia.next()) continue;
-       count=count+1;
-
-      Double_t weight=pythia.info.sigmaGen();
-       fHistXsection->Fill(weight);
-       fHistTrials->Fill(count);
       fjInputs.resize(0);
       Double_t index=0; 
       Double_t fourvec[4];
@@ -315,7 +316,7 @@ int main(int argc, char* argv[]) {
 
 
 
-    
+   
     // Fill kinematics histograms.
     Qhist->Fill( sqrt(Q2) );
     Whist->Fill( sqrt(W2) );
@@ -343,14 +344,7 @@ int main(int argc, char* argv[]) {
 	     boosted_particle = rotateY(boosted_particle, -theta_p);
 	     boosted_particle.set_user_index(i);
 	     fjInputs.push_back(boosted_particle);
-             pTrhist->Fill( boosted_particle.perp());
-            
-
-      }
-
-
-
-    }
+             pTrhist->Fill( boosted_particle.perp());}}
       
       double sumin=0;
       double sumout=0; 
@@ -365,18 +359,24 @@ int main(int argc, char* argv[]) {
       for(Int_t j=0;j<constit.size();j++){
        sumin=sumin+jet[0].px()*constit[j].px()+jet[0].py()*constit[j].py()+jet[0].pz()*constit[j].pz()-jet[0].e()*constit[j].e();}
       double tau=sumin*2/(Q2);
-
       int flagp=0;
-      
+   
       for(Int_t k=0;k<fjInputs.size();k++){
 	flagp=0;
 	for(Int_t m=0;m<constit.size();m++){
 	  if(fjInputs[k].user_index()==constit[m].user_index())flagp=1;}   
         if(flagp==0) sumout=sumout+boosted_proton.px()*fjInputs[k].px()+boosted_proton.py()*fjInputs[k].py()+boosted_proton.pz()*fjInputs[k].pz()-boosted_proton.e()*fjInputs[k].e();}
        double zout=2*x*sumout/Q2;
-      
+
+
+   fShapesVar[0]=jet[0].perp();
+   fShapesVar[1]=tau;
+   fShapesVar[2]=zout;
+   fShapesVar[3]=Q2;
+   
+   fTreeObservables->Fill();
 	 	  
-      	          }// End of event loop.
+   }// End of event loop.
 
    //____________________________________________________
    //          SAVE OUTPUT
@@ -392,12 +392,11 @@ int main(int argc, char* argv[]) {
      Qhist->Write();
      Whist->Write();
      xhist->Write();
-     fHistXsection->Write();
-     fHistTrials->Write();
      yhist->Write();
      pTehist->Write();
      histoJet->Write();
      histoJetEta->Write();
+     fTreeObservables->Write(); 
      outFile->Close();
    
 

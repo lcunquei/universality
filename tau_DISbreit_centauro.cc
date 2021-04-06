@@ -341,7 +341,7 @@ int main(int argc, char* argv[]) {
              fastjet::PseudoJet boosted_particle = boost(particle,boost_vector);
 	     boosted_particle = rotateZ(boosted_particle, -phi_p);
 	     boosted_particle = rotateY(boosted_particle, -theta_p);
-	     
+	     boosted_particle.set_user_index(i);
 	     fjInputs.push_back(boosted_particle);
              pTrhist->Fill( boosted_particle.perp());
             
@@ -352,18 +352,29 @@ int main(int argc, char* argv[]) {
 
     }
       
-
-      vector<fastjet::PseudoJet> inclusiveJets;
+      double sumin=0;
+      double sumout=0; 
      
+      vector<fastjet::PseudoJet> jet;
       fastjet::ClusterSequence clustSeq_Sig(fjInputs, jet_def);
-          
-      inclusiveJets = sorted_by_E(clustSeq_Sig.inclusive_jets(0));
-      if(inclusiveJets.size()==0) continue;
-      histoJet->Fill(inclusiveJets[0].perp());
-      histoJetEta->Fill(inclusiveJets[0].eta());
-     
-          
-          
+      jet = sorted_by_E(clustSeq_Sig.inclusive_jets(0));
+      if(jet.size()==0) continue;
+      histoJet->Fill(jet[0].perp());
+      histoJetEta->Fill(jet[0].eta());
+      vector < fastjet::PseudoJet > constit = sorted_by_pt(jet[0].constituents());
+      for(Int_t j=0;j<constit.size();j++){
+       sumin=sumin+jet[0].px()*constit[j].px()+jet[0].py()*constit[j].py()+jet[0].pz()*constit[j].pz()-jet[0].e()*constit[j].e();}
+      double tau=sumin*2/(Q2);
+
+      int flagp=0;
+      
+      for(Int_t k=0;k<fjInputs.size();k++){
+	flagp=0;
+	for(Int_t m=0;m<constit.size();m++){
+	  if(fjInputs[k].user_index()==constit[m].user_index())flagp=1;}   
+        if(flagp==0) sumout=sumout+boosted_proton.px()*fjInputs[k].px()+boosted_proton.py()*fjInputs[k].py()+boosted_proton.pz()*fjInputs[k].pz()-boosted_proton.e()*fjInputs[k].e();}
+       double zout=2*x*sumout/Q2;
+      
 	 	  
       	          }// End of event loop.
 

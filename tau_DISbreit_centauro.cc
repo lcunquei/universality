@@ -150,7 +150,7 @@ int main(int argc, char* argv[]) {
 
    double jetParameterR   = (double) atof(argv[4]); //jet R
    double trackLowPtCut   = 0.; //GeV
-   double trackEtaCut     = 4;
+   double trackEtaCut     = 5;
    
 
    //__________________________________________________________________________
@@ -198,8 +198,9 @@ int main(int argc, char* argv[]) {
 
    if(had==0){
      pythia.readString("HadronLevel:Hadronize=off");}
+   
    pythia.readString("ParticleDecays:tau0Max = 10 ");    
-    pythia.readString("11:mayDecay  = off"); //pi0s
+   pythia.readString("11:mayDecay  = off"); //pi0s
    pythia.readString("310:mayDecay  = off"); //K0s
    pythia.readString("3122:mayDecay = off"); //labda0
    pythia.readString("3112:mayDecay = off"); //sigma-
@@ -222,7 +223,7 @@ int main(int argc, char* argv[]) {
 
 
 
-  fastjet::contrib::CentauroPlugin * centauro_plugin = new fastjet::contrib::CentauroPlugin(1.0);
+  fastjet::contrib::CentauroPlugin * centauro_plugin = new fastjet::contrib::CentauroPlugin(jetParameterR);
   fastjet::JetDefinition jet_def(centauro_plugin);
   std::vector<fastjet::PseudoJet> fjInputs;
 
@@ -242,16 +243,17 @@ int main(int argc, char* argv[]) {
     TH1D *histoJetEta = new TH1D("histoJetEta","histoJetEta", 200,-10,10);
    histoJetEta->Sumw2();
 
-    const Int_t nVar = 4;
+    const Int_t nVar = 5;
    TTree *fTreeObservables = new TTree("variables", "variables");
    TString *fShapesVarNames = new TString [nVar];
    
-   float fShapesVar[4];
+   float fShapesVar[5];
    
    fShapesVarNames[0] = "ptjet";
    fShapesVarNames[1] = "tau";
    fShapesVarNames[2] = "zcut";
    fShapesVarNames[3] = "Q2";
+   fShapesVarNames[4] = "size";
     for(Int_t ivar=0; ivar < nVar; ivar++){
       fTreeObservables->Branch(fShapesVarNames[ivar].Data(), &fShapesVar[ivar], Form("%s/F", fShapesVarNames[ivar].Data()));}
 
@@ -354,6 +356,7 @@ int main(int argc, char* argv[]) {
       fastjet::ClusterSequence clustSeq_Sig(fjInputs, jet_def);
       jet = sorted_by_pt(clustSeq_Sig.inclusive_jets(0));
       if(jet.size()==0) continue;
+      if(TMath::Abs(jet[0].eta())>etamax_Sig) continue;
       histoJet->Fill(jet[0].perp());
       histoJetEta->Fill(jet[0].eta());
       
@@ -363,19 +366,19 @@ int main(int argc, char* argv[]) {
        sumin=sumin-jet[0].px()*constit[j].px()-jet[0].py()*constit[j].py()-jet[0].pz()*constit[j].pz()+jet[0].e()*constit[j].e();}
       double tau=sumin*2/(Q2);
       int flagp=0;
-      cout<<"TAU"<<tau<<endl;
+      
       for(Int_t k=0;k<fjInputs.size();k++){
 	flagp=0;
 	for(Int_t m=0;m<constit.size();m++){
-	  if(fjInputs[k].user_index()==constit[m].user_index())flagp=1;}   
+	if(fjInputs[k].user_index()==constit[m].user_index())flagp=1;}   
         if(flagp==0) sumout=sumout-boosted_proton.px()*fjInputs[k].px()-boosted_proton.py()*fjInputs[k].py()-boosted_proton.pz()*fjInputs[k].pz()+boosted_proton.e()*fjInputs[k].e();}
        double zout=2*x*sumout/Q2;
-    cout<<zout<<" zout"<<endl;
 
    fShapesVar[0]=jet[0].perp();
    fShapesVar[1]=tau;
    fShapesVar[2]=zout;
    fShapesVar[3]=Q2;
+   fShapesVar[4]=constit.size();
    
    fTreeObservables->Fill();
 	 	  

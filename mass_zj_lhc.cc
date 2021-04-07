@@ -104,6 +104,7 @@ int main(int argc, char* argv[]) {
   //pythia.readString("HardQCD:all = on");
   pythia.readString("WeakBosonAndParton:qg2gmZq = on");
   pythia.readString("WeakBosonAndParton:qqbar2gmZg  = on");
+  pythia.readString("WeakZ0:gmZmode = 2");
    if(ptHatMin<0 || ptHatMax <0){     
       pythia.readString("PhaseSpace:pTHatMin = 0."); // <<<<<<<<<<<<<<<<<<<<<<<
    }else{
@@ -193,7 +194,7 @@ int main(int argc, char* argv[]) {
       Double_t fourvec[4];
       for(Int_t i = 0; i < pythia.event.size(); ++i){
              if(pythia.event[i].isFinal()){
-	       //if(charged==1) if(!pythia.event[i].isCharged()) continue;         
+	       if(charged==1 && TMath::Abs(pythia.event[i].id())!=23) if(!pythia.event[i].isCharged()) continue;         
              if(pythia.event[i].pT() < trackLowPtCut) continue;                
 	     if(TMath::Abs(pythia.event[i].eta()) > trackEtaCut) continue;     
              fourvec[0]=pythia.event[i].px();
@@ -202,7 +203,7 @@ int main(int argc, char* argv[]) {
              fourvec[3]=pythia.event[i].e(); 
              fastjet::PseudoJet particle(fourvec);
 	     fjInputs.push_back(particle);
-	     if(pythia.event[i].id()==23 && particle.perp()>ptmax){
+	     if(TMath::Abs(pythia.event[i].id())==23 && particle.perp()>ptmax){
 	       ptmax=particle.perp();
 	       in=i;
 	     }
@@ -227,7 +228,8 @@ int main(int argc, char* argv[]) {
           for(unsigned int ijet = 0; ijet < inclusiveJets_Sig.size(); ijet++){
           fastjet::PseudoJet fjJet = inclusiveJets_Sig.at(ijet);
 	  Double_t dphi=RelativePhi(pythia.event[in].phi(),fjJet.phi()); 
-          if(dphi<TMath::Pi()-0.6) continue; 
+          if(dphi<TMath::Pi()-0.6) continue;
+	  if(TMath::Abs(fjJet.eta())>etamax_Sig) continue;
           double jetmass=TMath::Sqrt(fjJet.e()*fjJet.e()-fjJet.perp()*fjJet.perp()-fjJet.pz()*fjJet.pz());
 	  
    

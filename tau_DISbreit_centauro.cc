@@ -351,30 +351,41 @@ int main(int argc, char* argv[]) {
       
       double sumin=0;
       double sumout=0; 
-     
+      double zj=0;
+      double zmax=0;
+      int indexc=-1;
       vector<fastjet::PseudoJet> jet;
       fastjet::ClusterSequence clustSeq_Sig(fjInputs, jet_def);
       jet = sorted_by_pt(clustSeq_Sig.inclusive_jets(0));
       if(jet.size()==0) continue;
-      if(TMath::Abs(jet[0].eta())>etamax_Sig) continue;
-      histoJet->Fill(jet[0].perp());
-      histoJetEta->Fill(jet[0].eta());
+
+      //select centauro jet that maximizes zJ
+      for(Int_t k=0;k<jet.size();k++){
+      vector < fastjet::PseudoJet > constit_jet = sorted_by_pt(jet[k].constituents());
+      zj=0;
+      for(Int_t m=0;m<constit_jet.size();m++){
+	zj=zj-boosted_proton.px()*constit_jet[m].px()-boosted_proton.py()*constit_jet[m].py()-boosted_proton.pz()*constit_jet[m].pz()+boosted_proton.e()*constit_jet[m].e();}
+        if(zj>zmax){ zmax=zj;
+	  indexc=k;}
+      }
+	
+      if(indexc==-1) continue;
+      	
+      if(TMath::Abs(jet[indexc].eta())>etamax_Sig) continue;
+      histoJet->Fill(jet[indexc].perp());
+      histoJetEta->Fill(jet[indexc].eta());
       
-      vector < fastjet::PseudoJet > constit = sorted_by_pt(jet[0].constituents());
+      vector < fastjet::PseudoJet > constit = sorted_by_pt(jet[indexc].constituents());
 
       for(Int_t j=0;j<constit.size();j++){
-       sumin=sumin-jet[0].px()*constit[j].px()-jet[0].py()*constit[j].py()-jet[0].pz()*constit[j].pz()+jet[0].e()*constit[j].e();}
+       sumin=sumin-jet[0].px()*constit[j].px()-jet[indexc].py()*constit[j].py()-jet[indexc].pz()*constit[j].pz()+jet[indexc].e()*constit[j].e();}
       double tau=sumin*2/(Q2);
-      int flagp=0;
-      
-      for(Int_t k=0;k<fjInputs.size();k++){
-	flagp=0;
-	for(Int_t m=0;m<constit.size();m++){
-	if(fjInputs[k].user_index()==constit[m].user_index())flagp=1;}   
-        if(flagp==0) sumout=sumout-boosted_proton.px()*fjInputs[k].px()-boosted_proton.py()*fjInputs[k].py()-boosted_proton.pz()*fjInputs[k].pz()+boosted_proton.e()*fjInputs[k].e();}
-       double zout=2*x*sumout/Q2;
+    
+      double zout=1-2*x*zmax/Q2;
 
-   fShapesVar[0]=jet[0].perp();
+   
+
+   fShapesVar[0]=jet[indexc].perp();
    fShapesVar[1]=tau;
    fShapesVar[2]=zout;
    fShapesVar[3]=Q2;

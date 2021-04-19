@@ -378,7 +378,7 @@ int main(int argc, char* argv[]) {
       vector < fastjet::PseudoJet > constit = sorted_by_pt(jet[indexc].constituents());
 
       for(Int_t j=0;j<constit.size();j++){
-       sumin=sumin-jet[0].px()*constit[j].px()-jet[indexc].py()*constit[j].py()-jet[indexc].pz()*constit[j].pz()+jet[indexc].e()*constit[j].e();}
+       sumin=sumin-jet[indexc].px()*constit[j].px()-jet[indexc].py()*constit[j].py()-jet[indexc].pz()*constit[j].pz()+jet[indexc].e()*constit[j].e();}
       double tau=sumin*2/(Q2);
     
       double zout=1-2*x*zmax/Q2;

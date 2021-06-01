@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
 
    double jetParameterR   = (double) atof(argv[4]); //jet R
    double trackLowPtCut   = 0.; //GeV
-   double trackEtaCut     = 2;
+   double trackEtaCut     = 2.4;
    Float_t ptHatMin=80;
    Float_t ptHatMax=1000;
    
@@ -151,12 +151,12 @@ int main(int argc, char* argv[]) {
                                               strategy);
  
    // Fastjet input
-   std::vector<fastjet::PseudoJet> fjInputs;
+    std::vector<fastjet::PseudoJet> fjInputs;
     std::vector<fastjet::PseudoJet> fjPartMax;
 
   
-   TH1D *histotriggergamma = new TH1D("histotriggergamma","histotriggergamma", 200,0.0,400);
-   histotriggergamma->Sumw2();
+   TH1D *histotriggerZ = new TH1D("histotriggerZ","histotriggerZ", 200,0.0,400);
+   histotriggerZ->Sumw2();
 
 
    
@@ -167,17 +167,17 @@ int main(int argc, char* argv[]) {
    fHistTrials->GetYaxis()->SetTitle("trials");
 
 
-   const Int_t nVar = 4;
+   const Int_t nVar = 5;
    TTree *fTreeObservables = new TTree("variables", "variables");
    TString *fShapesVarNames = new TString [nVar];
    
-   float fShapesVar[4];
+   float fShapesVar[5];
    
    fShapesVarNames[0] = "ptGamma";
    fShapesVarNames[1] = "ptJet";
    fShapesVarNames[2] = "mass";
    fShapesVarNames[3] = "angle";
-  
+   fShapesVarNames[4] = "asym";
    
      for(Int_t ivar=0; ivar < nVar; ivar++){
       fTreeObservables->Branch(fShapesVarNames[ivar].Data(), &fShapesVar[ivar], Form("%s/F", fShapesVarNames[ivar].Data()));}
@@ -217,26 +217,24 @@ int main(int argc, char* argv[]) {
       if(TMath::Abs(pythia.event[in].eta())>trackEtaCut) continue;
       
     
-      histotriggergamma->Fill(ptmax);     
+      histotriggerZ->Fill(ptmax);     
     
      
-      vector<fastjet::PseudoJet> inclusiveJets_Sig;
+      vector<fastjet::PseudoJet> inclusiveJets;
       fastjet::ClusterSequence clustSeq_Sig(fjInputs, *jetDefAKT_Sig);
-      inclusiveJets_Sig = clustSeq_Sig.inclusive_jets(1.); 
-
-
-          for(unsigned int ijet = 0; ijet < inclusiveJets_Sig.size(); ijet++){
-          fastjet::PseudoJet fjJet = inclusiveJets_Sig.at(ijet);
-	  Double_t dphi=RelativePhi(pythia.event[in].phi(),fjJet.phi()); 
-          if(dphi<TMath::Pi()-0.6) continue;
-	  if(TMath::Abs(fjJet.eta())>etamax_Sig) continue;
-          double jetmass=TMath::Sqrt(fjJet.e()*fjJet.e()-fjJet.perp()*fjJet.perp()-fjJet.pz()*fjJet.pz());
+      inclusiveJets = order_by_pt(clustSeq_Sig.inclusive_jets(1.));\
+      fastjet::PseudoJet fjJet = inclusiveJets_Sig.at(0);
+      double dphijz=RelativePhi(pythia.event[in].phi(),fjJet.phi());
+      if(TMath::Abs(fjJet.eta())>etamax_Sig) continue;
+      double asym=(fjJet.perp()-ptmax)/(fjJet.perp()+ptmax);
+      double jetmass=TMath::Sqrt(fjJet.e()*fjJet.e()-fjJet.perp()*fjJet.perp()-fjJet.pz()*fjJet.pz());
 	  
    
    fShapesVar[0]=ptmax;
-   fShapesVar[1]=fjJet.pt();
+   fShapesVar[1]=fjJet.perp();
    fShapesVar[2]=jetmass;
-   fShapesVar[3]=dphi;
+   fShapesVar[3]=dphijz;
+   fShapesVar[4]=asym;
    
    fTreeObservables->Fill();
    
@@ -254,7 +252,7 @@ int main(int argc, char* argv[]) {
    TFile* outFile = new TFile(Form("%s_tune%d_c%d_charged%d_unev%d_hadv%d.root",tag.Data(), tune,cislo,charged,unev,had), "RECREATE");
    
     outFile->cd();
-    histotriggergamma->Write();
+    histotriggerZ->Write();
     fTreeObservables->Write(); 
     outFile->Close();
 

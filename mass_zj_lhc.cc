@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
    double jetParameterR   = (double) atof(argv[4]); //jet R
    double trackLowPtCut   = 0.; //GeV
    double trackEtaCut     = 2.4;
-   Float_t ptHatMin=80;
+   Float_t ptHatMin=25;
    Float_t ptHatMax=1000;
    
    TRandom3 *r3=new TRandom3();
@@ -120,6 +120,7 @@ int main(int argc, char* argv[]) {
      }
      if(had==0){
      pythia.readString("HadronLevel:Hadronize=off");}
+
    pythia.readString("23:mayDecay  = off"); //Z0s  
    pythia.readString("111:mayDecay  = off"); //pi0s  
    pythia.readString("310:mayDecay  = off"); //K0s
@@ -222,8 +223,8 @@ int main(int argc, char* argv[]) {
      
       vector<fastjet::PseudoJet> inclusiveJets;
       fastjet::ClusterSequence clustSeq_Sig(fjInputs, *jetDefAKT_Sig);
-      inclusiveJets = order_by_pt(clustSeq_Sig.inclusive_jets(1.));\
-      fastjet::PseudoJet fjJet = inclusiveJets_Sig.at(0);
+      inclusiveJets = sorted_by_pt(clustSeq_Sig.inclusive_jets(1.));\
+      fastjet::PseudoJet fjJet = inclusiveJets.at(0);
       double dphijz=RelativePhi(pythia.event[in].phi(),fjJet.phi());
       if(TMath::Abs(fjJet.eta())>etamax_Sig) continue;
       double asym=(fjJet.perp()-ptmax)/(fjJet.perp()+ptmax);
@@ -238,7 +239,7 @@ int main(int argc, char* argv[]) {
    
    fTreeObservables->Fill();
    
-	  }
+	  
       	           
   
 

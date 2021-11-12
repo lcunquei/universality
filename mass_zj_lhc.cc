@@ -84,8 +84,10 @@ int main(int argc, char* argv[]) {
 
    double jetParameterR   = (double) atof(argv[4]); //jet R
    double trackLowPtCut   = 0.; //GeV
-   double trackEtaCut     = 2.4;
-   Float_t ptHatMin=25;
+   double trackEtaCut     = 2.;
+   double zetacut =2.4;
+   double zpt=54;
+   Float_t ptHatMin=50;
    Float_t ptHatMax=1000;
    
    TRandom3 *r3=new TRandom3();
@@ -112,6 +114,14 @@ int main(int argc, char* argv[]) {
       pythia.readString(name.Data()); 
       name = Form("PhaseSpace:pTHatMax = %f", (Float_t) ptHatMax);
       pythia.readString(name.Data()); 
+            pythia.readString("PhaseSpace:bias2Selection = on");
+         pythia.readString("PhaseSpace:bias2SelectionPow = 5.");
+         pythia.readString("PhaseSpace:bias2SelectionRef = 8.");
+        pythia.readString(name.Data());
+
+
+
+
    }
 
    if(unev==0){
@@ -168,18 +178,20 @@ int main(int argc, char* argv[]) {
    fHistTrials->GetYaxis()->SetTitle("trials");
 
 
-   const Int_t nVar = 5;
+   const Int_t nVar = 8;
    TTree *fTreeObservables = new TTree("variables", "variables");
    TString *fShapesVarNames = new TString [nVar];
    
-   float fShapesVar[5];
+   float fShapesVar[8];
    
    fShapesVarNames[0] = "ptGamma";
    fShapesVarNames[1] = "ptJet";
    fShapesVarNames[2] = "mass";
    fShapesVarNames[3] = "angle";
    fShapesVarNames[4] = "asym";
-   
+   fShapesVarNames[5] = "veto";
+   fShapesVarNames[6] = "flavour";
+   fShapesVarNames[7] = "weight";
      for(Int_t ivar=0; ivar < nVar; ivar++){
       fTreeObservables->Branch(fShapesVarNames[ivar].Data(), &fShapesVar[ivar], Form("%s/F", fShapesVarNames[ivar].Data()));}
 
@@ -191,11 +203,15 @@ int main(int argc, char* argv[]) {
       fjInputs.resize(0);
       int in=-1;
       double ptmax=0;
+      double emax=0;
       Double_t index=0; 
       Double_t fourvec[4];
+      int indexveto=-1;
+      double ptveto=0;
+       double weight=pythia.info.weight();
       for(Int_t i = 0; i < pythia.event.size(); ++i){
              if(pythia.event[i].isFinal()){
-	       if(charged==1 && TMath::Abs(pythia.event[i].id())!=23) if(!pythia.event[i].isCharged()) continue;         
+	     if(charged==1 && TMath::Abs(pythia.event[i].id())!=23) if(!pythia.event[i].isCharged()) continue;         
              if(pythia.event[i].pT() < trackLowPtCut) continue;                
 	     if(TMath::Abs(pythia.event[i].eta()) > trackEtaCut) continue;     
              fourvec[0]=pythia.event[i].px();
@@ -206,6 +222,7 @@ int main(int argc, char* argv[]) {
 	     fjInputs.push_back(particle);
 	     if(TMath::Abs(pythia.event[i].id())==23 && particle.perp()>ptmax){
 	       ptmax=particle.perp();
+	       emax=particle.e();
 	       in=i;
 	     }
             
@@ -217,26 +234,57 @@ int main(int argc, char* argv[]) {
      
       if(TMath::Abs(pythia.event[in].eta())>trackEtaCut) continue;
       
+      if(ptmax<zpt) continue;
     
       histotriggerZ->Fill(ptmax);     
-    
-     
       vector<fastjet::PseudoJet> inclusiveJets;
+      
       fastjet::ClusterSequence clustSeq_Sig(fjInputs, *jetDefAKT_Sig);
-      inclusiveJets = sorted_by_pt(clustSeq_Sig.inclusive_jets(1.));\
-      fastjet::PseudoJet fjJet = inclusiveJets.at(0);
-      double dphijz=RelativePhi(pythia.event[in].phi(),fjJet.phi());
-      if(TMath::Abs(fjJet.eta())>etamax_Sig) continue;
-      double asym=(fjJet.perp()-ptmax)/(fjJet.perp()+ptmax);
-      double jetmass=TMath::Sqrt(fjJet.e()*fjJet.e()-fjJet.perp()*fjJet.perp()-fjJet.pz()*fjJet.pz());
-	  
-   
+      inclusiveJets = sorted_by_pt(clustSeq_Sig.inclusive_jets(1.));
+      double dphijz=0;
+      int indexjet=-1;
+      double jetptmax=0;
+      //get the hardest recoil jet
+      for(Int_t n=0;n<inclusiveJets.size();n++){
+       
+        fastjet::PseudoJet fjJet = inclusiveJets.at(n);
+        dphijz=RelativePhi(pythia.event[in].phi(),fjJet.phi());
+         if(TMath::Abs(fjJet.eta())>etamax_Sig) continue;
+	 if(TMath::Abs(dphijz)<=2) continue;
+ 	 if(fjJet.perp()>jetptmax){jetptmax=fjJet.perp();
+	  indexjet=n;}
+
+	
+
+      }
+      
+      if(indexjet==-1) continue;
+      //get the second hardest recoil jet
+      for(int m=indexjet+1;m<inclusiveJets.size();m++){
+	fastjet::PseudoJet subleadJet = inclusiveJets.at(m);
+	if(TMath::Abs(subleadJet.eta()>etamax_Sig)) continue;
+        dphijz=RelativePhi(pythia.event[in].phi(),subleadJet.phi());
+       if(TMath::Abs(dphijz)<=2) continue;
+	indexveto=m;
+	break;
+      }
+	 
+      if(indexveto==-1) ptveto=-1;
+      if(indexveto!=-1) ptveto=inclusiveJets.at(indexveto).perp();
+            
+ 
+      double jetmass=0;
+      double asym=inclusiveJets[indexjet].perp()/ptmax;
+     
+         
    fShapesVar[0]=ptmax;
-   fShapesVar[1]=fjJet.perp();
+   fShapesVar[1]=inclusiveJets[indexjet].perp();
    fShapesVar[2]=jetmass;
    fShapesVar[3]=dphijz;
    fShapesVar[4]=asym;
-   
+   fShapesVar[5]=ptveto; 
+   fShapesVar[6]=pythia.event[6].id();
+   fShapesVar[7]=weight;
    fTreeObservables->Fill();
    
 	  

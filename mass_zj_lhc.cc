@@ -275,7 +275,7 @@ int main(int argc, char* argv[]) {
  
       double jetmass=0;
       double asym=inclusiveJets[indexjet].perp()/ptmax;
-     
+      double jetmass=TMath::Sqrt(fjJet.e()*fjJet.e()-fjJet.perp()*fjJet.perp()-fjJet.pz()*fjJet.pz());     
          
    fShapesVar[0]=ptmax;
    fShapesVar[1]=inclusiveJets[indexjet].perp();
